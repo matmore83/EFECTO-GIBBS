@@ -112,7 +112,7 @@ def generar_triangular(
     duracion: float,
     fs: int,
     fase: float,
-    width: float = 0.5,
+    width: float,
 ) -> np.ndarray:
     """
     Genera una señal triangular.
