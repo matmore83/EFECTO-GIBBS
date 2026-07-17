@@ -1,0 +1,20 @@
+[project]
+name = "efecto-gibbs"
+version = "0.1.0"
+description = "Visualización del fenómeno de Gibbs mediante Series de Fourier"
+readme = "README.md"
+requires-python = ">=3.13"
+
+dependencies = [
+    "numpy>=2.3.0",
+    "scipy>=1.16.0",
+    "matplotlib>=3.10.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4.0",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
