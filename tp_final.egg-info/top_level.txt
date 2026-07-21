@@ -1,0 +1,4 @@
+app
+auxiliar
+docs
+examples
