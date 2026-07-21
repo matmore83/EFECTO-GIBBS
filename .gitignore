@@ -19,3 +19,20 @@ local/
 # Sistema
 .DS_Store
 Thumbs.db
+
+# carpeta auxiliar
+auxiliar/
+
+
+# Entornos virtuales
+.venv/
+
+# Caché de Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Archivos compilados específicos de Python
+*.pyc
+*.pyo
+*.pyd
