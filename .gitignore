@@ -2,3 +2,41 @@
 auxiliar/
 app/services/__pycache__/
 app/__pycache__/
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environment
+.venv/
+
+# Pytest
+.pytest_cache/
+
+# VS Code
+.vscode/
+
+# Archivos locales
+local/
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# carpeta auxiliar
+auxiliar/
+
+
+# Entornos virtuales
+.venv/
+
+# Caché de Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Archivos compilados específicos de Python
+*.pyc
+*.pyo
+*.pyd
