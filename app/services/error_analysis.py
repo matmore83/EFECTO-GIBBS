@@ -1,198 +1,112 @@
-"""
-Análisis del error entre una señal ideal y su aproximación
-mediante Series de Fourier.
-
-Este módulo permite cuantificar el error absoluto y porcentual
-en el entorno de las discontinuidades, facilitando el estudio
-del fenómeno de Gibbs.
-"""
+"""Establece la cantidad de armónicos asociado a la diferencia entre sus valores eficaces sucesivos"""
 
 from __future__ import annotations
 
 import numpy as np
 
+from auxiliar.funciones_auxiliares.fourier_series_aux import (
+    coeficientes_diente_sierra,
+    coeficientes_pulso,
+    coeficientes_triangular,
+)
 
-def error_absoluto(
-    señal_ideal: np.ndarray,
-    señal_fourier: np.ndarray,
-) -> np.ndarray:
+# Asociación entre el tipo de señal y la función
+# que calcula sus coeficientes de Fourier.
+FUNCIONES_COEFICIENTES = {
+    "diente_sierra": coeficientes_diente_sierra,
+    "pulso": coeficientes_pulso,
+    "triangular": coeficientes_triangular,
+}
+
+
+def calcular_rms_coeficientes(
+    a0: float,
+    an: np.ndarray,
+    bn: np.ndarray,
+) -> float:
     """
-    Calcula el error absoluto punto a punto.
-
-    Parámetros
-    ----------
-    señal_ideal : np.ndarray
-        Señal ideal.
-
-    señal_fourier : np.ndarray
-        Señal sintetizada mediante Fourier.
-
-    Retorna
-    -------
-    np.ndarray
-        Error absoluto.
+    Calcula el valor RMS mediante
+    el teorema de Parseval.
     """
 
-    if len(señal_ideal) != len(señal_fourier):
-        raise ValueError("Las señales deben tener la misma longitud.")
-
-    return np.abs(señal_ideal - señal_fourier)
+    return np.sqrt((a0**2) / 4 + 0.5 * np.sum(an**2 + bn**2))
 
 
-def error_porcentual(
-    señal_ideal: np.ndarray,
-    señal_fourier: np.ndarray,
+def determinar_armonicos_rms(
+    tipo_senal: str,
     amplitud: float,
-) -> np.ndarray:
+    tolerancia: float,
+    max_armonicos: int,
+) -> tuple[int, float]:
     """
-    Calcula el error porcentual respecto de la amplitud
-    nominal de la señal.
+    Determina la cantidad mínima de armónicos
+    necesaria para satisfacer el criterio
+    de convergencia del valor RMS.
 
     Parámetros
     ----------
-    señal_ideal : np.ndarray
-        Señal ideal.
+    tipo_senal : str
+        Tipo de señal.
 
-    señal_fourier : np.ndarray
-        Señal sintetizada.
+        Valores permitidos:
+
+        - "diente_sierra"
+        - "pulso"
+        - "triangular"
 
     amplitud : float
-        Amplitud pico de referencia.
+        Amplitud pico.
+
+    tolerancia : float
+        Error relativo máximo permitido.
+
+    max_armonicos : int
+        Cantidad máxima de armónicos.
 
     Retorna
     -------
-    np.ndarray
-        Error porcentual.
+    tuple
+
+        armonicos
+            Cantidad mínima de armónicos.
+
+        rms
+            Valor RMS alcanzado.
     """
 
-    if amplitud <= 0:
-        raise ValueError("La amplitud debe ser mayor que cero.")
+    try:
+        funcion_coeficientes = FUNCIONES_COEFICIENTES[tipo_senal]
 
-    error = error_absoluto(
-        señal_ideal,
-        señal_fourier,
-    )
+    except KeyError as exc:
+        raise ValueError(
+            f"Tipo de señal no válido: '{tipo_senal}'. "
+            "Valores permitidos: "
+            "'diente_sierra', 'pulso', 'triangular'."
+        ) from exc
 
-    return 100 * error / amplitud
+    rms_anterior = 0.0
 
+    for armonicos in range(1, max_armonicos + 1):
+        a0, an, bn = funcion_coeficientes(
+            amplitud=amplitud,
+            armonicos=armonicos,
+        )
 
-def obtener_discontinuidades(
-    señal_ideal: np.ndarray,
-    umbral: float | None = None,
-) -> np.ndarray:
-    """
-    Detecta automáticamente las discontinuidades de una señal.
-    """
+        rms_actual = calcular_rms_coeficientes(
+            a0=a0,
+            an=an,
+            bn=bn,
+        )
 
-    diferencia = np.abs(np.diff(señal_ideal))
+        if armonicos > 1:
+            error_relativo = abs(rms_actual - rms_anterior) / max(
+                rms_actual,
+                np.finfo(float).eps,
+            )
 
-    # Si la señal es constante, no existen discontinuidades.
-    if np.max(diferencia) == 0:
-        return np.array([], dtype=int)
+            if error_relativo < tolerancia:
+                return armonicos, rms_actual
 
-    if umbral is None:
-        umbral = 0.5 * np.max(diferencia)
+        rms_anterior = rms_actual
 
-    return np.where(diferencia >= umbral)[0]
-
-
-def error_entorno(
-    error: np.ndarray,
-    indices: np.ndarray,
-    ventana: int = 20,
-) -> np.ndarray:
-    """
-    Extrae el error únicamente en el entorno
-    de las discontinuidades.
-
-    Parámetros
-    ----------
-    error : np.ndarray
-        Error absoluto o porcentual.
-
-    indices : np.ndarray
-        Índices de discontinuidad.
-
-    ventana : int
-        Cantidad de muestras a cada lado.
-
-    Retorna
-    -------
-    np.ndarray
-        Error localizado alrededor de los saltos.
-    """
-
-    segmentos = []
-
-    for indice in indices:
-        inicio = max(0, indice - ventana)
-        fin = min(len(error), indice + ventana + 1)
-
-        segmentos.append(error[inicio:fin])
-
-    if len(segmentos) == 0:
-        return np.array([])
-
-    return np.concatenate(segmentos)
-
-
-def error_analysis(
-    señal_ideal: np.ndarray,
-    señal_fourier: np.ndarray,
-    amplitud: float,
-    ventana: int = 20,
-) -> dict:
-    """
-    Analiza el error producido por la aproximación
-    mediante Series de Fourier.
-
-    Parámetros
-    ----------
-    señal_ideal : np.ndarray
-        Señal original.
-
-    señal_fourier : np.ndarray
-        Señal sintetizada.
-
-    amplitud : float
-        Amplitud nominal.
-
-    ventana : int
-        Cantidad de muestras alrededor de cada discontinuidad.
-
-    Retorna
-    -------
-    dict
-        Diccionario con todas las métricas del análisis.
-    """
-
-    error_abs = error_absoluto(
-        señal_ideal,
-        señal_fourier,
-    )
-
-    error_pct = error_porcentual(
-        señal_ideal,
-        señal_fourier,
-        amplitud,
-    )
-
-    discontinuidades = obtener_discontinuidades(
-        señal_ideal,
-    )
-
-    entorno = error_entorno(
-        error_pct,
-        discontinuidades,
-        ventana,
-    )
-
-    return {
-        "error_absoluto": error_abs,
-        "error_porcentual": error_pct,
-        "indices_discontinuidad": discontinuidades,
-        "error_entorno": entorno,
-        "error_maximo": np.max(entorno) if entorno.size else 0.0,
-        "error_promedio": np.mean(entorno) if entorno.size else 0.0,
-        "cantidad_discontinuidades": len(discontinuidades),
-    }
+    raise RuntimeError("No se alcanzó el criterio de paro.")
