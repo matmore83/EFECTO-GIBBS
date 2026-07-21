@@ -1,3 +1,24 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environment
+.venv/
+
+# Pytest
+.pytest_cache/
+
+# VS Code
+.vscode/
+
+# Archivos locales
+local/
+
+# Sistema
+.DS_Store
+Thumbs.db
 
 # carpeta auxiliar
 auxiliar/
