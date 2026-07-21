@@ -2,6 +2,7 @@
 auxiliar/
 app/services/__pycache__/
 app/__pycache__/
+app/__pycache__/
 # Python
 __pycache__/
 *.pyc
