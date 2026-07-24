@@ -1,1 +1,15 @@
-/.venv/
+# Entorno virtual
+.venv/
+
+# Caché de Python
+__pycache__/
+*.pyc
+
+# Cobertura
+.coverage
+htmlcov/
+
+# Archivos de audio de prueba
+examples/*.wav
+examples/*.flac
+examples/*.ogg
