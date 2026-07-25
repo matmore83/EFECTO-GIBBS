@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Efecto Gibbs</title>
+<link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <div class="fondo-glow"></div>
+
+  <header class="encabezado">
+    <div class="titulo">
+      <span class="titulo-icono">∿</span>
+      <div>
+        <h1>Efecto <span class="degradado">Gibbs</span></h1>
+        <p>Síntesis de señales periódicas mediante Series de Fourier</p>
+      </div>
+    </div>
+    <div class="estado" id="estado-conexion">
+      <span class="punto"></span>
+      <span id="estado-texto">Conectando…</span>
+    </div>
+  </header>
+
+  <main class="layout">
+    <aside class="panel-controles">
+      <div class="tarjeta">
+        <h2>Tipo de señal</h2>
+        <div class="tabs" id="tabs-senal">
+          <button class="tab activo" data-tipo="pulso">Pulso</button>
+          <button class="tab" data-tipo="diente-sierra">Diente de sierra</button>
+          <button class="tab" data-tipo="triangular">Triangular</button>
+        </div>
+      </div>
+
+      <div class="tarjeta">
+        <h2>Parámetros</h2>
+
+        <div class="control">
+          <label for="frecuencia">Frecuencia <span class="unidad">Hz</span></label>
+          <input type="range" id="frecuencia" min="1" max="50" step="1" value="5" />
+          <output id="frecuencia-valor">5</output>
+        </div>
+
+        <div class="control">
+          <label for="amplitud">Amplitud</label>
+          <input type="range" id="amplitud" min="0.1" max="5" step="0.1" value="1" />
+          <output id="amplitud-valor">1.0</output>
+        </div>
+
+        <div class="control">
+          <label for="armonicos">Armónicos <span class="unidad">N</span></label>
+          <input type="range" id="armonicos" min="1" max="150" step="1" value="5" />
+          <output id="armonicos-valor">5</output>
+        </div>
+
+        <div class="control">
+          <label for="fs">Muestreo <span class="unidad">Hz</span></label>
+          <input type="range" id="fs" min="2000" max="50000" step="1000" value="20000" />
+          <output id="fs-valor">20000</output>
+        </div>
+
+        <div class="control">
+          <label for="periodos">Períodos visibles</label>
+          <input type="range" id="periodos" min="1" max="6" step="1" value="3" />
+          <output id="periodos-valor">3</output>
+        </div>
+      </div>
+
+      <div class="tarjeta">
+        <h2>Convergencia RMS</h2>
+        <div class="control">
+          <label for="tolerancia">Tolerancia relativa</label>
+          <input type="range" id="tolerancia" min="0.0001" max="0.02" step="0.0001" value="0.001" />
+          <output id="tolerancia-valor">0.0010</output>
+        </div>
+        <button class="boton" id="boton-armonicos">Calcular armónicos mínimos</button>
+        <p class="resultado-chico" id="resultado-armonicos"></p>
+      </div>
+
+      <div class="tarjeta">
+        <h2>Importar audio</h2>
+        <label class="dropzone" id="dropzone" for="input-audio">
+          <span>Soltá un .wav / .flac / .ogg</span>
+          <span class="dropzone-chica">o hacé clic para elegir archivo</span>
+        </label>
+        <input type="file" id="input-audio" accept=".wav,.flac,.ogg,.aiff,.aif" hidden />
+        <p class="resultado-chico" id="resultado-audio"></p>
+      </div>
+    </aside>
+
+    <section class="panel-graficos">
+      <div class="tarjeta">
+        <h2>Efecto Gibbs — entorno de discontinuidades</h2>
+        <div class="grid-metricas">
+          <div class="metrica">
+            <span class="metrica-valor" id="metrica-error-max">–</span>
+            <span class="metrica-etiqueta">Sobreoscilación máx.</span>
+          </div>
+          <div class="metrica">
+            <span class="metrica-valor" id="metrica-error-prom">–</span>
+            <span class="metrica-etiqueta">Error promedio</span>
+          </div>
+          <div class="metrica">
+            <span class="metrica-valor" id="metrica-discontinuidades">–</span>
+            <span class="metrica-etiqueta">Discontinuidades</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="tarjeta">
+        <h2>Tramos continuos (sin Gibbs)</h2>
+        <div class="grid-metricas grid-metricas-6">
+          <div class="metrica">
+            <span class="metrica-valor" id="metrica-margen">–</span>
+            <span class="metrica-etiqueta">Margen excluido</span>
+          </div>
+          <div class="metrica">
+            <span class="metrica-valor" id="metrica-muestras-evaluadas">–</span>
+            <span class="metrica-etiqueta">Muestras evaluadas</span>
+          </div>
+          <div class="metrica">
+            <span class="metrica-valor" id="metrica-error-medio">–</span>
+            <span class="metrica-etiqueta">Error medio</span>
+          </div>
+          <div class="metrica">
+            <span class="metrica-valor" id="metrica-error-max-continuo">–</span>
+            <span class="metrica-etiqueta">Error máximo</span>
+          </div>
+          <div class="metrica">
+            <span class="metrica-valor" id="metrica-rms">–</span>
+            <span class="metrica-etiqueta">Error RMS</span>
+          </div>
+          <div class="metrica">
+            <span class="metrica-valor" id="metrica-error-relativo">–</span>
+            <span class="metrica-etiqueta">Error relativo medio</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="tarjeta grafico-grande">
+        <h2>Señal ideal vs. reconstrucción de Fourier</h2>
+        <div class="contenedor-grafico">
+          <canvas id="grafico-senal"></canvas>
+        </div>
+      </div>
+
+      <div class="fila-graficos">
+        <div class="tarjeta grafico-chico">
+          <h2>Error porcentual</h2>
+          <div class="contenedor-grafico">
+            <canvas id="grafico-error"></canvas>
+          </div>
+        </div>
+        <div class="tarjeta grafico-chico">
+          <h2>Espectro (magnitud)</h2>
+          <div class="contenedor-grafico">
+            <canvas id="grafico-espectro"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="tarjeta grafico-chico oculto" id="tarjeta-audio">
+        <h2>Vista previa de audio importado</h2>
+        <div class="contenedor-grafico">
+          <canvas id="grafico-audio"></canvas>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="/static/vendor/chart.umd.min.js"></script>
+  <script src="/static/app.js"></script>
+</body>
+</html>

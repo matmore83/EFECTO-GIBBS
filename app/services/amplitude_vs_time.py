@@ -13,7 +13,7 @@ def generar_diente_sierra(
     amplitud: float,
     duracion: float,
     fs: int,
-    fase: float,
+    fase: float = 0,
 ) -> np.ndarray:
     """
     Genera una señal periódica de diente de sierra.
@@ -59,8 +59,8 @@ def generar_rectangular(
     amplitud: float,
     duracion: float,
     fs: int,
-    fase: float,
-    duty: float,
+    fase: float = np.pi,
+    duty: float = 0.5,
 ) -> np.ndarray:
     """
     Genera una señal rectangular.
@@ -111,8 +111,8 @@ def generar_triangular(
     amplitud: float,
     duracion: float,
     fs: int,
-    fase: float,
-    width: float,
+    fase: float = 0,
+    width: float = 0.5,
 ) -> np.ndarray:
     """
     Genera una señal triangular.

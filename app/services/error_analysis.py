@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from auxiliar.funciones_auxiliares.fourier_series_aux import (
+from app.services.fourier_series import (
     coeficientes_diente_sierra,
     coeficientes_pulso,
     coeficientes_triangular,
