@@ -53,3 +53,6 @@ examples/*.ogg
 *.pyc
 *.pyo
 *.pyd
+
+.venv/*
+.venv/
