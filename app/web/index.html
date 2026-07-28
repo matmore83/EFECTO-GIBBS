@@ -1,11 +1,13 @@
 <!doctype html>
 <html lang="es">
+
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Efecto Gibbs</title>
-<link rel="stylesheet" href="/static/style.css" />
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Efecto Gibbs</title>
+  <link rel="stylesheet" href="/static/style.css" />
 </head>
+
 <body>
   <div class="fondo-glow"></div>
 
@@ -17,9 +19,13 @@
         <p>Síntesis de señales periódicas mediante Series de Fourier</p>
       </div>
     </div>
-    <div class="estado" id="estado-conexion">
-      <span class="punto"></span>
-      <span id="estado-texto">Conectando…</span>
+    <div class="encabezado-derecha">
+      <div class="estado" id="estado-conexion">
+        <span class="punto"></span>
+        <span id="estado-texto">Conectando…</span>
+      </div>
+      <button class="boton-tema" id="boton-tema" title="Cambiar tema claro/oscuro"
+        aria-label="Cambiar tema claro/oscuro">🌙</button>
     </div>
   </header>
 
@@ -39,8 +45,11 @@
 
         <div class="control">
           <label for="frecuencia">Frecuencia <span class="unidad">Hz</span></label>
-          <input type="range" id="frecuencia" min="1" max="50" step="1" value="5" />
-          <output id="frecuencia-valor">5</output>
+          <div class="control-doble">
+            <input type="range" id="frecuencia" min="20" max="20000" step="1" value="440" />
+            <input type="number" id="frecuencia-numero" class="numero-chico" min="20" max="20000" step="1"
+              value="440" />
+          </div>
         </div>
 
         <div class="control">
@@ -56,9 +65,11 @@
         </div>
 
         <div class="control">
-          <label for="fs">Muestreo <span class="unidad">Hz</span></label>
-          <input type="range" id="fs" min="2000" max="50000" step="1000" value="20000" />
-          <output id="fs-valor">20000</output>
+          <label for="fs">Frecuencia de muestreo</label>
+          <select id="fs">
+            <option value="44100" selected>44100 Hz </option>
+            <option value="48000">48000 Hz </option>
+          </select>
         </div>
 
         <div class="control">
@@ -71,12 +82,19 @@
       <div class="tarjeta">
         <h2>Convergencia RMS</h2>
         <div class="control">
-          <label for="tolerancia">Tolerancia relativa</label>
-          <input type="range" id="tolerancia" min="0.0001" max="0.02" step="0.0001" value="0.001" />
-          <output id="tolerancia-valor">0.0010</output>
+          <label for="tolerancia">
+            Tolerancia relativa
+            <span class="info" tabindex="0"
+              title="Criterio de paro: si |RMS_N − RMS_(N-1)| / RMS_N < tolerancia, se detiene la búsqueda de armónicos. Marcador expresado en unidades de ×10⁻⁶.">ⓘ</span>
+          </label>
+          <input type="range" id="tolerancia" min="0.000001" max="0.02" step="0.000001" value="0.001" />
+          <output id="tolerancia-valor">1000.00 ×10⁻⁶</output>
         </div>
         <button class="boton" id="boton-armonicos">Calcular armónicos mínimos</button>
         <p class="resultado-chico" id="resultado-armonicos"></p>
+        <div class="contenedor-grafico contenedor-grafico-conv">
+          <canvas id="grafico-convergencia"></canvas>
+        </div>
       </div>
 
       <div class="tarjeta">
@@ -88,6 +106,41 @@
         <input type="file" id="input-audio" accept=".wav,.flac,.ogg,.aiff,.aif" hidden />
         <p class="resultado-chico" id="resultado-audio"></p>
       </div>
+
+      <details class="tarjeta">
+        <summary>📖 Documentación</summary>
+        <div class="doc-contenido">
+          <h3>Métricas de error</h3>
+          <dl>
+            <dt>Error medio</dt>
+            <dd>Valor medio del módulo de la diferencia entre la amplitud de la función y la señal sintetizada mediante
+              Series de Fourier.</dd>
+            <dt>Error máximo</dt>
+            <dd>Valor máximo del módulo de la diferencia entre la amplitud de la función y la señal sintetizada mediante
+              Series de Fourier.</dd>
+            <dt>Error relativo medio (%)</dt>
+            <dd>Valor medio del módulo de la diferencia entre la amplitud de la función y la señal sintetizada, tomando
+              como referencia la amplitud de la función. No se muestra en los tramos continuos porque, cerca de los
+              cruces por cero de la señal ideal, dividir por un valor de referencia casi nulo produce picos de error sin
+              significado real.</dd>
+            <dt>Error RMS</dt>
+            <dd>Valor eficaz (RMS) del error: raíz cuadrada de la media del error al cuadrado.</dd>
+            <dt>Error</dt>
+            <dd>Diferencia entre la amplitud de la función y la señal sintetizada mediante Series de Fourier.</dd>
+          </dl>
+          <h3>Convergencia y tolerancia</h3>
+          <p>Se agregan armónicos de a uno y se recalcula el valor RMS de la serie (teorema de Parseval). Cuando la
+            variación relativa entre un paso y el siguiente cae por debajo de la tolerancia, se considera alcanzada la
+            convergencia:</p>
+          <p class="formula">|RMS<sub>N</sub> − RMS<sub>N−1</sub>| / RMS<sub>N</sub> &lt; tolerancia</p>
+          <h3>Efecto de Gibbs</h3>
+          <p>En el entorno de cada discontinuidad, la reconstrucción por Serie de Fourier presenta una sobreoscilación
+            que <strong>no desaparece al aumentar la cantidad de armónicos</strong>: converge a un valor cercano al 9 %
+            de la amplitud del salto. Por eso "Sobreoscilación máx." y "Error promedio" del panel Gibbs se mantienen
+            prácticamente constantes al mover el slider de armónicos — es el comportamiento esperado, no un error de la
+            aplicación.</p>
+        </div>
+      </details>
     </aside>
 
     <section class="panel-graficos">
@@ -96,11 +149,13 @@
         <div class="grid-metricas">
           <div class="metrica">
             <span class="metrica-valor" id="metrica-error-max">–</span>
-            <span class="metrica-etiqueta">Sobreoscilación máx.</span>
+            <span class="metrica-etiqueta">Sobreoscilación máx. <span class="info" tabindex="0"
+                title="Valor máximo del módulo de la diferencia entre la señal ideal y la reconstrucción de Fourier, evaluado en el entorno de las discontinuidades.">ⓘ</span></span>
           </div>
           <div class="metrica">
             <span class="metrica-valor" id="metrica-error-prom">–</span>
-            <span class="metrica-etiqueta">Error promedio</span>
+            <span class="metrica-etiqueta">Error promedio <span class="info" tabindex="0"
+                title="Valor medio del módulo del error en el entorno de las discontinuidades. Por el efecto Gibbs, tiende a un ~9% constante sin importar la cantidad de armónicos: no es un error de cálculo.">ⓘ</span></span>
           </div>
           <div class="metrica">
             <span class="metrica-valor" id="metrica-discontinuidades">–</span>
@@ -122,55 +177,90 @@
           </div>
           <div class="metrica">
             <span class="metrica-valor" id="metrica-error-medio">–</span>
-            <span class="metrica-etiqueta">Error medio</span>
+            <span class="metrica-etiqueta">Error medio <span class="info" tabindex="0"
+                title="Valor medio del módulo de la diferencia entre la amplitud de la función y la señal sintetizada mediante Series de Fourier.">ⓘ</span></span>
           </div>
           <div class="metrica">
             <span class="metrica-valor" id="metrica-error-max-continuo">–</span>
-            <span class="metrica-etiqueta">Error máximo</span>
+            <span class="metrica-etiqueta">Error máximo <span class="info" tabindex="0"
+                title="Valor máximo del módulo de la diferencia entre la amplitud de la función y la señal sintetizada mediante Series de Fourier.">ⓘ</span></span>
           </div>
           <div class="metrica">
             <span class="metrica-valor" id="metrica-rms">–</span>
-            <span class="metrica-etiqueta">Error RMS</span>
-          </div>
-          <div class="metrica">
-            <span class="metrica-valor" id="metrica-error-relativo">–</span>
-            <span class="metrica-etiqueta">Error relativo medio</span>
+            <span class="metrica-etiqueta">Error RMS <span class="info" tabindex="0"
+                title="Valor eficaz (RMS) del error: raíz cuadrada de la media del error al cuadrado.">ⓘ</span></span>
           </div>
         </div>
       </div>
 
       <div class="tarjeta grafico-grande">
-        <h2>Señal ideal vs. reconstrucción de Fourier</h2>
+        <div class="tarjeta-header">
+          <h2>Señal ideal vs. reconstrucción de Fourier</h2>
+          <button class="boton-chico" id="boton-reset-zoom">Reset zoom</button>
+        </div>
         <div class="contenedor-grafico">
           <canvas id="grafico-senal"></canvas>
         </div>
+        <p class="ayuda-chica">Rueda del mouse: zoom · Arrastrar: desplazar (para ver el detalle de las
+          discontinuidades).</p>
       </div>
 
-      <div class="fila-graficos">
-        <div class="tarjeta grafico-chico">
-          <h2>Error porcentual</h2>
-          <div class="contenedor-grafico">
-            <canvas id="grafico-error"></canvas>
-          </div>
+      <div class="tarjeta grafico-chico">
+        <div class="tarjeta-header">
+          <h2>Espectro (magnitud y fase)</h2>
+          <label class="check-chico"><input type="checkbox" id="escala-log" /> Escala log. (magnitud)</label>
         </div>
-        <div class="tarjeta grafico-chico">
-          <h2>Espectro (magnitud)</h2>
-          <div class="contenedor-grafico">
-            <canvas id="grafico-espectro"></canvas>
-          </div>
+        <div class="contenedor-grafico">
+          <canvas id="grafico-espectro"></canvas>
+        </div>
+      </div>
+
+      <div class="tarjeta">
+        <h2>Coeficientes de Fourier <span class="info" tabindex="0"
+            title="x(t) = a0/2 + Σ [an·cos(n·ω0·t) + bn·sin(n·ω0·t)]">ⓘ</span></h2>
+        <p class="resultado-chico">a0 = <span id="coef-a0">–</span></p>
+        <div class="tabla-coef-contenedor">
+          <table class="tabla-coef" id="tabla-coeficientes">
+            <thead>
+              <tr>
+                <th>n</th>
+                <th>an</th>
+                <th>bn</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
         </div>
       </div>
 
       <div class="tarjeta grafico-chico oculto" id="tarjeta-audio">
-        <h2>Vista previa de audio importado</h2>
-        <div class="contenedor-grafico">
-          <canvas id="grafico-audio"></canvas>
+        <h2>Análisis de audio importado</h2>
+        <div class="grid-metricas">
+          <div class="metrica">
+            <span class="metrica-valor" id="metrica-audio-rms">–</span>
+            <span class="metrica-etiqueta">RMS</span>
+          </div>
+          <div class="metrica">
+            <span class="metrica-valor" id="metrica-audio-pico">–</span>
+            <span class="metrica-etiqueta">Pico</span>
+          </div>
+        </div>
+        <div class="fila-graficos">
+          <div class="contenedor-grafico">
+            <canvas id="grafico-audio"></canvas>
+          </div>
+          <div class="contenedor-grafico">
+            <canvas id="grafico-audio-espectro"></canvas>
+          </div>
         </div>
       </div>
     </section>
   </main>
 
   <script src="/static/vendor/chart.umd.min.js"></script>
+  <script src="/static/vendor/hammer.min.js"></script>
+  <script src="/static/vendor/chartjs-plugin-zoom.min.js"></script>
   <script src="/static/app.js"></script>
 </body>
+
 </html>

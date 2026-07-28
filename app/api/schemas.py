@@ -17,14 +17,20 @@ class ParametrosSenal(BaseModel):
     """Parámetros de síntesis de una señal periódica."""
 
     frecuencia: float = Field(
-        default=5.0, gt=0, description="Frecuencia fundamental [Hz]."
+        default=440.0,
+        gt=0,
+        le=20_000,
+        description="Frecuencia fundamental [Hz]. Rango audible: 20 Hz - 20 kHz.",
     )
     amplitud: float = Field(default=1.0, ge=0, description="Amplitud pico.")
     duracion: float = Field(
         default=1.0, gt=0, le=10.0, description="Duración de la señal [s]."
     )
     fs: int = Field(
-        default=20000, gt=0, le=100_000, description="Frecuencia de muestreo [Hz]."
+        default=44_100,
+        gt=0,
+        le=100_000,
+        description="Frecuencia de muestreo [Hz]. Valores típicos: 44100, 48000.",
     )
     armonicos: int = Field(
         default=5, gt=0, le=500, description="Cantidad de armónicos."
@@ -90,6 +96,17 @@ class AudioImportadoResponse(BaseModel):
     cantidad_muestras: int
     duracion_s: float
     muestras_preview: list[float]
+    rms: float
+    pico: float
+    espectro_frecuencias: list[float]
+    espectro_magnitud: list[float]
+
+
+class ConvergenciaResponse(BaseModel):
+    """Evolución del valor RMS acumulado a medida que se agregan armónicos."""
+
+    armonicos: list[int]
+    rms: list[float]
 
 
 class FourierCoefficientsResponse(BaseModel):

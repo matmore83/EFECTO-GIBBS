@@ -110,3 +110,54 @@ def determinar_armonicos_rms(
         rms_anterior = rms_actual
 
     raise RuntimeError("No se alcanzó el criterio de paro.")
+
+
+def calcular_serie_rms(
+    tipo_senal: str,
+    amplitud: float,
+    max_armonicos: int,
+) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Calcula el valor RMS acumulado para N = 1..max_armonicos, para
+    visualizar la convergencia relativa a medida que se agregan armónicos.
+
+    Parámetros
+    ----------
+    tipo_senal : str
+        Tipo de señal ("diente_sierra", "pulso" o "triangular").
+
+    amplitud : float
+        Amplitud pico.
+
+    max_armonicos : int
+        Cantidad de puntos (armónicos) a calcular.
+
+    Retorna
+    -------
+    tuple[np.ndarray, np.ndarray]
+
+        armonicos
+            N = 1..max_armonicos.
+
+        rms
+            Valor RMS acumulado en cada N.
+    """
+
+    try:
+        funcion_coeficientes = FUNCIONES_COEFICIENTES[tipo_senal]
+
+    except KeyError as exc:
+        raise ValueError(
+            f"Tipo de señal no válido: '{tipo_senal}'. "
+            "Valores permitidos: "
+            "'diente_sierra', 'pulso', 'triangular'."
+        ) from exc
+
+    armonicos = np.arange(1, max_armonicos + 1)
+    rms = np.empty(max_armonicos)
+
+    for i, n in enumerate(armonicos):
+        a0, an, bn = funcion_coeficientes(amplitud=amplitud, armonicos=int(n))
+        rms[i] = calcular_rms_coeficientes(a0=a0, an=an, bn=bn)
+
+    return armonicos, rms

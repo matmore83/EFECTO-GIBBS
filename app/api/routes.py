@@ -18,7 +18,9 @@ from app.api.schemas import (
     ArmonicosNecesariosResponse,
     AudioImportadoResponse,
     ContinuidadResponse,
+    ConvergenciaResponse,
     EspectroResponse,
+    FourierCoefficientsResponse,
     ParametrosSenal,
 )
 from app.services.amplitude_vs_time import (
@@ -31,8 +33,12 @@ from app.services.compation import (
     calcular_margen_gibbs,
     detectar_tramos_continuidad,
 )
-from app.services.error_analysis import determinar_armonicos_rms
+from app.services.error_analysis import calcular_serie_rms, determinar_armonicos_rms
+from app.services.fft_service import calcular_espectro_fft, calcular_estadisticos
 from app.services.fourier_series import (
+    coeficientes_diente_sierra,
+    coeficientes_pulso,
+    coeficientes_triangular,
     fourier_diente_sierra,
     fourier_pulso,
     fourier_triangular,
@@ -53,9 +59,22 @@ class DefinicionSenal:
     generar_ideal: Callable[[ParametrosSenal], np.ndarray]
     sintetizar_fourier: Callable[..., np.ndarray]
     magnitud_fase: Callable[[float, int], tuple[np.ndarray, np.ndarray]]
+    coeficientes: Callable[..., tuple[float, np.ndarray, np.ndarray]]
     clave_rms: str
 
 
+# Las fases iniciales (0, π, π/2) alinean cada generador "ideal" con la
+# convención en seno puro (bn únicamente, sin cos) de su Serie de Fourier
+# correspondiente, para que ambas curvas queden superpuestas en el
+# gráfico en vez de desfasadas medio período entre sí:
+# - pulso: la serie senoidal vale 0 en t=0 y sube primero -> fase=0 ya
+#   coincide con el rectangular (+A para 0<tau<0.5).
+# - diente de sierra: la serie senoidal vale 0 en t=0 (rampa creciente
+#   centrada en el origen) -> el generador con fase=0 arranca en -A, hay
+#   que correrlo medio período (fase=π) para que también valga 0 en t=0.
+# - triangular: la serie senoidal sube desde 0 en t=0 hacia el pico en
+#   T/4 -> el generador con fase=0 arranca en el valle (-A); un cuarto de
+#   período (fase=π/2) lo alinea.
 SENALES: dict[TipoSenal, DefinicionSenal] = {
     "pulso": DefinicionSenal(
         generar_ideal=lambda p: generar_rectangular(
@@ -63,22 +82,25 @@ SENALES: dict[TipoSenal, DefinicionSenal] = {
         ),
         sintetizar_fourier=fourier_pulso,
         magnitud_fase=magnitud_fase_pulso,
+        coeficientes=coeficientes_pulso,
         clave_rms="pulso",
     ),
     "diente-sierra": DefinicionSenal(
         generar_ideal=lambda p: generar_diente_sierra(
-            p.frecuencia, p.amplitud, p.duracion, p.fs, 0.0
+            p.frecuencia, p.amplitud, p.duracion, p.fs, np.pi
         ),
         sintetizar_fourier=fourier_diente_sierra,
         magnitud_fase=magnitud_fase_diente_sierra,
+        coeficientes=coeficientes_diente_sierra,
         clave_rms="diente_sierra",
     ),
     "triangular": DefinicionSenal(
         generar_ideal=lambda p: generar_triangular(
-            p.frecuencia, p.amplitud, p.duracion, p.fs, 0.0, 0.5
+            p.frecuencia, p.amplitud, p.duracion, p.fs, np.pi / 2, 0.5
         ),
         sintetizar_fourier=fourier_triangular,
         magnitud_fase=magnitud_fase_triangular,
+        coeficientes=coeficientes_triangular,
         clave_rms="triangular",
     ),
 }
@@ -234,6 +256,25 @@ def obtener_armonicos_necesarios(
     )
 
 
+@router.get("/{tipo}/convergencia-rms", response_model=ConvergenciaResponse)
+def obtener_convergencia_rms(
+    tipo: TipoSenal,
+    amplitud: float = 1.0,
+    max_armonicos: int = Query(default=60, gt=0, le=5000),
+) -> ConvergenciaResponse:
+    """Evolución del valor RMS acumulado para N = 1..max_armonicos armónicos."""
+
+    definicion = SENALES[tipo]
+
+    armonicos, rms = calcular_serie_rms(
+        tipo_senal=definicion.clave_rms,
+        amplitud=amplitud,
+        max_armonicos=max_armonicos,
+    )
+
+    return ConvergenciaResponse(armonicos=armonicos.tolist(), rms=rms.tolist())
+
+
 @audio_router.post("/importar", response_model=AudioImportadoResponse)
 async def importar_audio(
     archivo: UploadFile,
@@ -254,39 +295,43 @@ async def importar_audio(
     finally:
         ruta_temporal.unlink(missing_ok=True)
 
+    # El audio importado no tiene una expresión "ideal" con la que comparar
+    # un error de reconstrucción; el equivalente del análisis que sí se hace
+    # sobre las señales sintetizadas es su espectro real (FFT) y estadísticos
+    # básicos de la forma de onda (RMS, pico).
+    rms, pico = calcular_estadisticos(señal)
+    frecuencias_fft, magnitud_fft = calcular_espectro_fft(señal, fs)
+
     return AudioImportadoResponse(
         fs=fs,
         cantidad_muestras=len(señal),
         duracion_s=len(señal) / fs,
         muestras_preview=señal[:muestras_preview].tolist(),
+        rms=rms,
+        pico=pico,
+        espectro_frecuencias=frecuencias_fft.tolist(),
+        espectro_magnitud=magnitud_fft.tolist(),
     )
 
 
 @router.get(
-    "/fourier/diente-sierra/coeficientes",
-    summary="Coeficientes de Fourier de una onda diente de sierra",
+    "/{tipo}/coeficientes",
+    response_model=FourierCoefficientsResponse,
+    summary="Coeficientes de Fourier de la señal",
     description=(
-        "Calcula los coeficientes analíticos "
-        "a0, an y bn correspondientes a la Serie de Fourier "
-        "de una onda diente de sierra."
+        "Calcula los coeficientes analíticos a0, an y bn de la Serie de "
+        "Fourier (forma seno-coseno) usados internamente para sintetizar "
+        "la señal seleccionada."
     ),
 )
-def obtener_coeficientes_diente_sierra(
-    amplitud: float,
-    armonicos: int,
-):
-    """
-    Devuelve los coeficientes analíticos de la Serie de Fourier
-    para una onda diente de sierra.
-    """
+def obtener_coeficientes(
+    tipo: TipoSenal,
+    amplitud: float = 1.0,
+    armonicos: int = Query(default=5, gt=0, le=500),
+) -> FourierCoefficientsResponse:
+    """Devuelve los coeficientes analíticos a0, an y bn de la Serie de Fourier."""
 
-    a0, an, bn = coeficientes_diente_sierra(
-        amplitud=amplitud,
-        armonicos=armonicos,
-    )
+    definicion = SENALES[tipo]
+    a0, an, bn = definicion.coeficientes(amplitud=amplitud, armonicos=armonicos)
 
-    return {
-        "a0": a0,
-        "an": an.tolist(),
-        "bn": bn.tolist(),
-    }
+    return FourierCoefficientsResponse(a0=float(a0), an=an.tolist(), bn=bn.tolist())
